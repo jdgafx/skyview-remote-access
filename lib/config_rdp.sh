@@ -26,7 +26,7 @@ SKYVIEW_RDP_PORT="${SKYVIEW_RDP_PORT:-3389}"
 SKYVIEW_RDP_SESMAN_PORT="${SKYVIEW_RDP_SESMAN_PORT:-3350}"
 SKYVIEW_RDP_SSL_ENABLED="${SKYVIEW_RDP_SSL_ENABLED:-true}"
 SKYVIEW_RDP_MAX_BPP="${SKYVIEW_RDP_MAX_BPP:-24}"
-SKYVIEW_RDP_SECURITY_LAYER="${SKYVIEW_RDP_SECURITY_LAYER:-tls}"
+SKYVIEW_RDP_SECURITY_LAYER="${SKYVIEW_RDP_SECURITY_LAYER:-rdp}"
 
 # ============================================================================
 # Installation Functions
@@ -117,6 +117,8 @@ configure_xrdp() {
     # Set permissions
     chmod_xrdp_config
 
+    fix_rdp_permissions
+
     log_info "xrdp configuration complete"
     return 0
 }
@@ -170,7 +172,7 @@ port=3389
 bind_address=0.0.0.0
 
 ; Security settings
-security_layer=tls
+security_layer=${SKYVIEW_RDP_SECURITY_LAYER:-rdp}
 crypt_level=high
 ssl_protocols=TLSv1.2,TLSv1.3
 certificate=/etc/xrdp/cert.pem
@@ -388,6 +390,22 @@ chmod_xrdp_config() {
     chmod 644 /etc/xrdp/cert.pem 2>/dev/null || true
 }
 
+fix_rdp_permissions() {
+    log_info "Applying RDP permission fixes..."
+
+    if getent group ssl-cert >/dev/null; then
+        usermod -a -G ssl-cert xrdp 2>/dev/null || true
+    fi
+
+    if [[ -f "/etc/ssl/private/ssl-cert-snakeoil.key" ]]; then
+        chown xrdp:xrdp /etc/ssl/certs/ssl-cert-snakeoil.pem 2>/dev/null || true
+        chown xrdp:xrdp /etc/ssl/private/ssl-cert-snakeoil.key 2>/dev/null || true
+        chmod 640 /etc/ssl/private/ssl-cert-snakeoil.key 2>/dev/null || true
+    fi
+
+    rm -rf /run/xrdp/sockdir/* 2>/dev/null || true
+}
+
 # ============================================================================
 # Native Wayland RDP Configuration
 # ============================================================================
@@ -485,6 +503,25 @@ EOF
 # Service Management Functions
 # ============================================================================
 
+# Reclaim RDP port
+reclaim_rdp_port() {
+    local port="${1:-3389}"
+    
+    log_info "Attempting to reclaim RDP port $port..."
+    
+    local pid
+    pid=$(lsof -t -i :"$port" 2>/dev/null)
+    if [[ -n "$pid" ]]; then
+        log_warn "Found process $pid listening on port $port. Terminating..."
+        kill -9 "$pid" 2>/dev/null || true
+    fi
+    
+    # Clean up stale pid files
+    rm -f /var/run/xrdp.pid 2>/dev/null
+    rm -f /var/run/xrdp/xrdp.pid 2>/dev/null
+    rm -f /run/xrdp/xrdp.pid 2>/dev/null
+}
+
 # Start xrdp services
 start_xrdp() {
     log_info "Starting xrdp services..."
@@ -493,6 +530,9 @@ start_xrdp() {
         log_error "systemctl not available"
         return 1
     fi
+
+    # Reclaim port
+    reclaim_rdp_port "$SKYVIEW_RDP_PORT"
 
     # Start sesman first
     systemctl start xrdp-sesman.service 2>/dev/null || true
