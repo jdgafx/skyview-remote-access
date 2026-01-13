@@ -1,0 +1,27 @@
+{
+  "agents": {
+    "agent-1768291373085-ij90n9": {
+      "agentId": "agent-1768291373085-ij90n9",
+      "agentType": "tester",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic"
+      },
+      "createdAt": "2026-01-13T08:02:53.085Z"
+    },
+    "agent-1768291373092-zavuhr": {
+      "agentId": "agent-1768291373092-zavuhr",
+      "agentType": "architect",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic"
+      },
+      "createdAt": "2026-01-13T08:02:53.092Z"
+    }
+  },
+  "version": "3.0.0"
+}

@@ -1,0 +1,21 @@
+[Unit]
+Description=SkyView Universal Remote Access (RDP + VNC + SSH)
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/home/chris/dev/skyview-remote-access/skyview-remote-access.sh --auto
+ExecStop=/bin/bash -c 'systemctl stop xrdp 2>/dev/null; systemctl stop gnome-remote-desktop 2>/dev/null; systemctl stop vncserver 2>/dev/null; systemctl stop sshd 2>/dev/null'
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/etc/skyview /var/log /run
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

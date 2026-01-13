@@ -1,0 +1,101 @@
+cpu:
+                       Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz, 3000 MHz
+                       Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz, 3000 MHz
+                       Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz, 3000 MHz
+                       Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz, 3000 MHz
+                       Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz, 3000 MHz
+                       Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz, 3000 MHz
+                       Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz, 3100 MHz
+                       Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz, 3000 MHz
+                       Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz, 3089 MHz
+                       Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz, 1600 MHz
+                       Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz, 3000 MHz
+                       Intel(R) Core(TM) i7-10810U CPU @ 1.10GHz, 3100 MHz
+keyboard:
+                       Logitech Unifying Receiver
+  /dev/input/event3    AT Translated Set 2 keyboard
+mouse:
+                       Logitech Unifying Receiver
+  /dev/input/mice      PS/2 Generic Mouse
+  /dev/input/mice      DELL09BD:00 0488:120A Mouse
+  /dev/input/mice      DELL09BD:00 0488:120A Touchpad
+chipcard:
+                       Broadcom 58200
+monitor:
+                       84XF7 B133HAN LCD Monitor
+                       SAMSUNG LS24AG32x
+graphics card:
+                       Intel Comet Lake UHD Graphics
+sound:
+                       Intel Comet Lake PCH-LP cAVS
+storage:
+                       Floppy disk controller
+                       Non-Volatile memory controller
+network:
+  wlo1                 Intel Wireless-AC 9462 80MHz
+network interface:
+  veth7062b59          Ethernet network interface
+  br-19401377b56a      Ethernet network interface
+  vethb692f8b          Ethernet network interface
+  br-69974626ce33      Ethernet network interface
+  vethaceef3a          Ethernet network interface
+  vethee90def          Ethernet network interface
+  virbr0               Ethernet network interface
+  veth20d39ae          Ethernet network interface
+  vetha1697e0          Ethernet network interface
+  lo                   Loopback network interface
+  wlo1                 Ethernet network interface
+  veth2f9b442          Ethernet network interface
+  docker0              Ethernet network interface
+  veth690b1eb          Ethernet network interface
+  br-24bb58501e72      Ethernet network interface
+disk:
+  /dev/nvme0n1         Disk
+partition:
+  /dev/nvme0n1p1       Partition
+  /dev/nvme0n1p2       Partition
+  /dev/nvme0n1p3       Partition
+usb controller:
+                       Intel JHL7540 Thunderbolt 3 USB Controller [Titan Ridge 4C 2018]
+                       Intel Comet Lake PCH-LP USB 3.1 xHCI Host Controller
+bios:
+                       BIOS
+bridge:
+                       Intel Comet Lake PCI Express Root Port #5
+                       Intel Comet Lake PCH-LP LPC Premium Controller/eSPI Controller
+                       Intel JHL7540 Thunderbolt 3 Bridge [Titan Ridge 4C 2018]
+                       Intel JHL7540 Thunderbolt 3 Bridge [Titan Ridge 4C 2018]
+                       Intel Host bridge
+                       Intel JHL7540 Thunderbolt 3 Bridge [Titan Ridge 4C 2018]
+                       Intel Comet Lake PCI Express Root Port #13
+                       Intel JHL7540 Thunderbolt 3 Bridge [Titan Ridge 4C 2018]
+                       Intel JHL7540 Thunderbolt 3 Bridge [Titan Ridge 4C 2018]
+hub:
+                       Linux Foundation 2.0 root hub
+                       Linux Foundation 3.0 root hub
+                       Linux Foundation 2.0 root hub
+                       Linux Foundation 3.0 root hub
+memory:
+                       Main Memory
+bluetooth:
+                       Intel Bluetooth Device
+unknown:
+                       FPU
+                       DMA controller
+                       PIC
+                       Keyboard controller
+                       PS/2 Controller
+                       Intel JHL7540 Thunderbolt 3 NHI [Titan Ridge 4C 2018]
+                       Intel Xeon E3-1200 v5/v6 / E3-1500 v5 / 6th/7th/8th Gen Core Processor Gaussian Mixture Model
+                       Intel Comet Lake Serial IO I2C Host Controller
+                       Intel Comet Lake Integrated Sensor Solution
+                       Intel Xeon E3-1200 v5/E3-1500 v5/6th Gen Core Processor Thermal Subsystem
+                       Intel Comet Lake Management Engine Interface
+                       Intel Comet Lake SPI (flash) Controller
+                       Intel Comet Lake Serial IO I2C Host Controller
+                       Intel Comet Lake Thermal Subsytem
+                       Intel Serial IO I2C Host Controller
+                       Intel Comet Lake PCH-LP Shared SRAM
+                       Intel Comet Lake PCH-LP SMBus Host Controller
+                       Realtek Integrated_Webcam_HD
+                       Broadcom 58200
