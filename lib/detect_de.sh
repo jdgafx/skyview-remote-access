@@ -345,7 +345,7 @@ normalize_wm_type() {
         *Openbox*|*Fluxbox*|*Enlightenment*|*Sawfish*)
             SKYVIEW_WM_TYPE="floating"
             ;;
-        * Mutter*|*Muffin*|*Marco*)
+        *Mutter*|*Muffin*|*Marco*)
             SKYVIEW_WM_TYPE="floating"
             ;;
     esac

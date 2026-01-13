@@ -52,7 +52,7 @@ DRY_RUN="${DRY_RUN:-false}"
 SKYVIEW_SKIP_PACKAGES="${SKYVIEW_SKIP_PACKAGES:-false}"
 SKYVIEW_SKIP_FIREWALL="${SKYVIEW_SKIP_FIREWALL:-false}"
 SKYVIEW_SKIP_SERVICES="${SKYVIEW_SKIP_SERVICES:-false}"
-SKYVIEW_SSH_PORT="${SKYVIEW_SSH_PORT:-22}"
+SKYVIEW_SSH_PORT="${SKYVIEW_SSH_PORT:-2277}"
 SKYVIEW_RDP_PORT="${SKYVIEW_RDP_PORT:-3389}"
 SKYVIEW_VNC_PORT="${SKYVIEW_VNC_PORT:-5900}"
 
@@ -75,17 +75,15 @@ source_library() {
 
 # Load core libraries
 load_libraries() {
-    log_debug "Loading library modules..."
-
     source_library "utils.sh" || exit 1
     source_library "detect_os.sh" || exit 1
     source_library "detect_de.sh" || exit 1
     source_library "detect_session.sh" || exit 1
     source_library "config_rdp.sh" || exit 1
     source_library "config_vnc.sh" || exit 1
+    source_library "config_ssh.sh" || exit 1
+    source_library "config_native.sh" || exit 1
     source_library "firewall.sh" || exit 1
-
-    log_debug "All libraries loaded successfully"
 }
 
 # ============================================================================
@@ -220,6 +218,19 @@ configure_remote_access() {
 
     local errors=0
 
+    # Detect system first
+    detect_system || true
+
+    # Configure SSH (new module)
+    log_info "Configuring SSH on port ${SKYVIEW_SSH_PORT}..."
+    if configure_ssh; then
+        log_info "SSH configured successfully"
+    else
+        log_warn "SSH configuration failed"
+        ((errors++))
+    fi
+
+    # Configure RDP
     log_info "Configuring RDP..."
     if configure_xrdp; then
         log_info "RDP configured successfully"
@@ -228,6 +239,17 @@ configure_remote_access() {
         ((errors++))
     fi
 
+    # Configure Native RDP (Wayland - new module)
+    if [[ "$SKYVIEW_SESSION_TYPE" == "wayland" ]]; then
+        log_info "Configuring Native RDP for Wayland..."
+        if configure_native_rdp; then
+            log_info "Native RDP configured successfully"
+        else
+            log_warn "Native RDP configuration failed (may not be supported for this DE)"
+        fi
+    fi
+
+    # Configure VNC
     log_info "Configuring VNC..."
     if configure_vnc; then
         log_info "VNC configured successfully"
@@ -236,6 +258,7 @@ configure_remote_access() {
         ((errors++))
     fi
 
+    # Configure firewall
     if [[ "$SKYVIEW_SKIP_FIREWALL" != "true" ]]; then
         log_info "Configuring firewall..."
         if configure_firewall; then
@@ -271,6 +294,16 @@ start_services() {
 
     local errors=0
 
+    # Start SSH
+    log_info "Starting SSH on port ${SKYVIEW_SSH_PORT}..."
+    if start_ssh; then
+        log_info "SSH started successfully"
+    else
+        log_warn "SSH failed to start"
+        ((errors++))
+    fi
+
+    # Start RDP
     log_info "Starting xrdp..."
     if start_xrdp; then
         log_info "xrdp started successfully"
@@ -279,6 +312,17 @@ start_services() {
         ((errors++))
     fi
 
+    # Start Native RDP if Wayland
+    if [[ "$SKYVIEW_SESSION_TYPE" == "wayland" ]]; then
+        log_info "Starting Native RDP..."
+        if start_native_rdp; then
+            log_info "Native RDP started successfully"
+        else
+            log_warn "Native RDP failed to start"
+        fi
+    fi
+
+    # Start VNC
     if [[ -f "$HOME/.config/systemd/user/skyview-vnc.service" ]]; then
         log_info "Starting VNC service..."
         start_vnc_service
@@ -301,7 +345,9 @@ stop_services() {
         return 0
     fi
 
+    stop_ssh
     stop_xrdp
+    stop_native_rdp
     stop_vnc_service
 
     log_info "All services stopped"
@@ -322,8 +368,10 @@ enable_services() {
         return 0
     fi
 
+    enable_ssh
     enable_xrdp
-    start_vnc_service
+    enable_native_rdp
+    enable_vnc_service
 
     log_info "Services enabled on boot"
 }
@@ -340,8 +388,18 @@ disable_services() {
 show_status() {
     print_header "Service Status"
 
+    echo "SSH Status:"
+    get_ssh_status
+
+    echo ""
     echo "RDP Status:"
     get_rdp_status
+
+    echo ""
+    if [[ "$SKYVIEW_SESSION_TYPE" == "wayland" ]]; then
+        echo "Native RDP Status:"
+        get_native_rdp_status
+    fi
 
     echo ""
     echo "VNC Status:"
@@ -355,9 +413,9 @@ show_status() {
     echo "Quick Connect Commands:"
     local ip
     ip=$(get_primary_ip)
+    echo "  SSH:  ssh -p ${SKYVIEW_SSH_PORT} user@${ip}"
     echo "  RDP:  rdp://${ip}:${SKYVIEW_RDP_PORT}"
     echo "  VNC:  vnc://${ip}:${SKYVIEW_VNC_PORT}"
-    echo "  SSH:  ssh -p ${SKYVIEW_SSH_PORT} user@${ip}"
 }
 
 verify_configuration() {
@@ -367,8 +425,16 @@ verify_configuration() {
 
     log_info "Running verification checks..."
 
+    log_info "Checking SSH..."
+    verify_ssh || ((errors++))
+
     log_info "Checking RDP..."
     verify_xrdp || ((errors++))
+
+    if [[ "$SKYVIEW_SESSION_TYPE" == "wayland" ]]; then
+        log_info "Checking Native RDP..."
+        verify_native_rdp || ((errors++))
+    fi
 
     log_info "Checking VNC..."
     verify_vnc || ((errors++))
