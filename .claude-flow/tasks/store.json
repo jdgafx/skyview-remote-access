@@ -1,0 +1,31 @@
+{
+  "tasks": {
+    "task-1768300627376-vcui3f": {
+      "taskId": "task-1768300627376-vcui3f",
+      "type": "research",
+      "description": "Config file name search",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-01-13T10:37:07.376Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1768300651202-wdx16t": {
+      "taskId": "task-1768300651202-wdx16t",
+      "type": "research",
+      "description": "Template/Lib investigation",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-01-13T10:37:31.203Z",
+      "startedAt": null,
+      "completedAt": null
+    }
+  },
+  "version": "3.0.0"
+}

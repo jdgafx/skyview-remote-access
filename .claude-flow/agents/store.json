@@ -21,6 +21,61 @@
         "provider": "anthropic"
       },
       "createdAt": "2026-01-13T08:02:53.092Z"
+    },
+    "agent-1768300520240-3pv3d0": {
+      "agentId": "agent-1768300520240-3pv3d0",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic"
+      },
+      "createdAt": "2026-01-13T10:35:20.240Z"
+    },
+    "agent-1768300520403-yiioqa": {
+      "agentId": "agent-1768300520403-yiioqa",
+      "agentType": "architect",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic"
+      },
+      "createdAt": "2026-01-13T10:35:20.403Z"
+    },
+    "agent-1768300620472-tfyzuc": {
+      "agentId": "agent-1768300620472-tfyzuc",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic"
+      },
+      "createdAt": "2026-01-13T10:37:00.472Z"
+    },
+    "agent-1768300649184-8w7lbo": {
+      "agentId": "agent-1768300649184-8w7lbo",
+      "agentType": "tester",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic"
+      },
+      "createdAt": "2026-01-13T10:37:29.184Z"
+    },
+    "agent-1768300660282-x1vjic": {
+      "agentId": "agent-1768300660282-x1vjic",
+      "agentType": "analyst",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic"
+      },
+      "createdAt": "2026-01-13T10:37:40.282Z"
     }
   },
   "version": "3.0.0"

@@ -23,8 +23,14 @@ BLUE='\033[0;34m'
 
 # --- Configuration ---
 RDP_PORT=3389
-LOG_FILE="/tmp/skyview_setup.log"
+LOG_FILE="$HOME/.skyview_setup.log"
 CERT_DIR="/etc/xrdp"
+SSH_KEY_TYPE="ed25519"
+SSH_KEY_PATH="$HOME/.ssh/id_${SSH_KEY_TYPE}_skyview"
+SSH_REMOTE_USER="${SSH_REMOTE_USER:-}"
+SSH_REMOTE_HOST="${SSH_REMOTE_HOST:-}"
+SSH_PORT="${SSH_PORT:-2277}"
+SSH_PASSWORD_AUTH="${SSH_PASSWORD_AUTH:-yes}"
 
 # Initialize log
 echo "=== SkyView Setup $(date) ===" > "$LOG_FILE"
@@ -43,6 +49,202 @@ banner() {
     echo -e "${CYAN}┃${NC}${MAGENTA}    Works with ANY Desktop: KDE, GNOME, XFCE, etc.              ${NC}${CYAN}┃${NC}"
     echo -e "${CYAN}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}"
     echo ""
+}
+
+# =============================================================================
+# SSH KEY SETUP (Auto-configuration for remote access)
+# =============================================================================
+
+setup_ssh_keys() {
+    log "${BOLD}>>> CONFIGURING SSH KEY AUTHENTICATION...${NC}"
+    
+    # Create .ssh directory if it doesn't exist
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+    
+    # Check for existing keys (prefer ed25519, fall back to rsa)
+    local key_found=""
+    local pub_key=""
+    
+    # Check for existing skyview key first
+    if [ -f "$SSH_KEY_PATH" ]; then
+        key_found="$SSH_KEY_PATH"
+        pub_key="${SSH_KEY_PATH}.pub"
+        log "${GREEN}[✔]${NC} Found existing SkyView SSH key: $key_found"
+    # Check for other ed25519 keys
+    elif [ -f "$HOME/.ssh/id_ed25519" ]; then
+        key_found="$HOME/.ssh/id_ed25519"
+        pub_key="$HOME/.ssh/id_ed25519.pub"
+        log "${GREEN}[✔]${NC} Found existing ED25519 key: $key_found"
+    elif [ -f "$HOME/.ssh/id_ed25519_encryption" ]; then
+        key_found="$HOME/.ssh/id_ed25519_encryption"
+        pub_key="$HOME/.ssh/id_ed25519_encryption.pub"
+        log "${GREEN}[✔]${NC} Found existing encryption key: $key_found"
+    # Check for RSA keys
+    elif [ -f "$HOME/.ssh/id_rsa" ]; then
+        key_found="$HOME/.ssh/id_rsa"
+        pub_key="$HOME/.ssh/id_rsa.pub"
+        log "${GREEN}[✔]${NC} Found existing RSA key: $key_found"
+    elif [ -f "$HOME/.ssh/id_rsa_gpg" ]; then
+        key_found="$HOME/.ssh/id_rsa_gpg"
+        pub_key="$HOME/.ssh/id_rsa_gpg.pub"
+        log "${GREEN}[✔]${NC} Found existing GPG-RSA key: $key_found"
+    fi
+    
+    # Generate new key if none found
+    if [ -z "$key_found" ]; then
+        log "${YELLOW}[*]${NC} No SSH key found. Generating new ED25519 key..."
+        ssh-keygen -t ed25519 -f "$SSH_KEY_PATH" -N "" -C "SkyView Remote Access - $(whoami)@$(hostname)"
+        key_found="$SSH_KEY_PATH"
+        pub_key="${SSH_KEY_PATH}.pub"
+        log "${GREEN}[✔]${NC} Generated new SSH key: $key_found"
+    fi
+    
+    # Ensure key is in ssh-agent
+    if ! pgrep -u "$USER" ssh-agent > /dev/null; then
+        eval "$(ssh-agent -s)" >> "$LOG_FILE" 2>&1
+        log "${GREEN}[✔]${NC} Started SSH agent"
+    fi
+    
+    # Add key to agent (suppress errors if already added)
+    ssh-add "$key_found" 2>/dev/null || true
+    log "${GREEN}[✔]${NC} SSH key loaded into agent"
+    
+    # Create/update SSH config for easier connections
+    setup_ssh_config "$key_found"
+    
+    # Store the public key for display
+    SSH_PUBLIC_KEY=$(cat "$pub_key")
+    SSH_ACTIVE_KEY="$key_found"
+    
+    log "${GREEN}[✔]${NC} SSH key authentication configured"
+}
+
+configure_ssh_server() {
+    log "${BOLD}>>> CONFIGURING SSH SERVER...${NC}"
+    
+    local sshd_config="/etc/ssh/sshd_config"
+    
+    if [ ! -f "$sshd_config" ]; then
+        log "${YELLOW}[*]${NC} SSH server not installed, skipping"
+        return 0
+    fi
+    
+    as_root "cp $sshd_config ${sshd_config}.bak.skyview 2>/dev/null || true"
+    
+    as_root "sed -i 's/^#Port .*/Port $SSH_PORT/' $sshd_config"
+    as_root "sed -i 's/^Port .*/Port $SSH_PORT/' $sshd_config"
+    
+    if [ "$SSH_PASSWORD_AUTH" = "yes" ]; then
+        as_root "sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' $sshd_config"
+        as_root "sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' $sshd_config"
+        log "${GREEN}[✔]${NC} Password authentication enabled"
+    else
+        as_root "sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication no/' $sshd_config"
+        as_root "sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' $sshd_config"
+        log "${GREEN}[✔]${NC} Password authentication disabled (key-only)"
+    fi
+    
+    as_root "systemctl enable ssh 2>/dev/null || systemctl enable sshd 2>/dev/null || true"
+    as_root "systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true"
+    
+    if ss -tlnp 2>/dev/null | grep -q ":$SSH_PORT"; then
+        log "${GREEN}[✔]${NC} SSH server running on port $SSH_PORT"
+    else
+        log "${RED}[✗]${NC} SSH server failed to start"
+    fi
+}
+
+setup_ssh_config() {
+    local key_path="$1"
+    local ssh_config="$HOME/.ssh/config"
+    
+    # Create config if doesn't exist
+    touch "$ssh_config"
+    chmod 600 "$ssh_config"
+    
+    # Add default settings if not present
+    if ! grep -q "Host \*" "$ssh_config" 2>/dev/null; then
+        cat >> "$ssh_config" << EOF
+
+# SkyView Remote Access - Default Settings
+Host *
+    AddKeysToAgent yes
+    IdentitiesOnly yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+
+EOF
+        log "${GREEN}[✔]${NC} Added default SSH config settings"
+    fi
+}
+
+deploy_ssh_key_to_remote() {
+    local remote_host="$1"
+    local remote_user="$2"
+    local remote_port="${3:-22}"
+    
+    if [ -z "$remote_host" ] || [ -z "$remote_user" ]; then
+        log "${YELLOW}[*]${NC} No remote host specified, skipping key deployment"
+        return 0
+    fi
+    
+    log "${BOLD}>>> DEPLOYING SSH KEY TO REMOTE HOST...${NC}"
+    log "   Target: ${remote_user}@${remote_host}:${remote_port}"
+    
+    # Try ssh-copy-id first (easiest method)
+    if command -v ssh-copy-id &> /dev/null; then
+        log "${YELLOW}[*]${NC} Attempting to copy key using ssh-copy-id..."
+        log "${YELLOW}[*]${NC} You may be prompted for the remote password (one time only)"
+        
+        if ssh-copy-id -i "${SSH_ACTIVE_KEY}.pub" -p "$remote_port" "${remote_user}@${remote_host}" 2>>"$LOG_FILE"; then
+            log "${GREEN}[✔]${NC} SSH key successfully deployed to remote host"
+            return 0
+        else
+            log "${YELLOW}[!]${NC} ssh-copy-id failed, trying manual method..."
+        fi
+    fi
+    
+    # Manual method as fallback
+    log "${YELLOW}[*]${NC} Deploying key manually..."
+    local pub_key=$(cat "${SSH_ACTIVE_KEY}.pub")
+    
+    ssh -p "$remote_port" "${remote_user}@${remote_host}" "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$pub_key' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys" 2>>"$LOG_FILE"
+    
+    if [ $? -eq 0 ]; then
+        log "${GREEN}[✔]${NC} SSH key manually deployed to remote host"
+        return 0
+    else
+        log "${RED}[✗]${NC} Failed to deploy SSH key. You may need to add it manually."
+        log "${YELLOW}[*]${NC} Add this key to remote ~/.ssh/authorized_keys:"
+        log "${CYAN}$pub_key${NC}"
+        return 1
+    fi
+}
+
+verify_ssh_connection() {
+    local remote_host="$1"
+    local remote_user="$2"
+    local remote_port="${3:-22}"
+    
+    if [ -z "$remote_host" ] || [ -z "$remote_user" ]; then
+        return 0
+    fi
+    
+    log "${BOLD}>>> VERIFYING SSH CONNECTION...${NC}"
+    
+    if ssh -o BatchMode=yes -o ConnectTimeout=10 -p "$remote_port" "${remote_user}@${remote_host}" "echo 'SSH connection successful'" 2>>"$LOG_FILE"; then
+        log "${GREEN}[✔]${NC} SSH key authentication verified!"
+        return 0
+    else
+        log "${RED}[✗]${NC} SSH key authentication failed"
+        log "${YELLOW}[*]${NC} Please manually add your public key to the remote server:"
+        log ""
+        log "${CYAN}$SSH_PUBLIC_KEY${NC}"
+        log ""
+        log "Run on remote: ${GOLD}echo '$SSH_PUBLIC_KEY' >> ~/.ssh/authorized_keys${NC}"
+        return 1
+    fi
 }
 
 detect_desktop() {
@@ -315,6 +517,9 @@ show_summary() {
     echo -e "   ${BLUE}Desktop:${NC}        ${CYAN}${desktop}${NC} (${session})"
     echo -e "   ${BLUE}Username:${NC}       ${CYAN}${target_user}${NC}"
     echo -e "   ${BLUE}Password:${NC}       Use your Linux login password"
+    echo -e "   ${BLUE}SSH Key:${NC}        ${CYAN}${SSH_ACTIVE_KEY:-~/.ssh/id_ed25519}${NC}"
+    echo -e "   ${BLUE}SSH Port:${NC}       ${GOLD}${SSH_PORT}${NC}"
+    echo -e "   ${BLUE}SSH Auth:${NC}       ${CYAN}Password: ${SSH_PASSWORD_AUTH}, Key: yes${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "   ${BOLD}CONNECTION (Local LAN):${NC}"
     echo -e "   ${GOLD}${ip_addr}:${RDP_PORT}${NC}"
@@ -325,6 +530,11 @@ show_summary() {
     echo ""
     echo -e "   ${YELLOW}NOTE:${NC} Ensure router port forwarding is configured:"
     echo -e "   External ${EXTERNAL_RDP_PORT} -> ${ip_addr}:${RDP_PORT} (TCP)"
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "   ${BOLD}SSH PUBLIC KEY (add to remote ~/.ssh/authorized_keys):${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "   ${GOLD}${SSH_PUBLIC_KEY:-No key found}${NC}"
     echo ""
 }
 
@@ -342,12 +552,20 @@ log "   Session: ${CYAN}${SESSION_TYPE}${NC}"
 echo ""
 
 # Run setup steps
+setup_ssh_keys
+configure_ssh_server
 install_dependencies
 setup_certificates
 configure_xrdp
 configure_session_manager "$DESKTOP"
 configure_firewall
 start_services
+
+# Deploy SSH key to remote if specified
+if [ -n "$SSH_REMOTE_HOST" ] && [ -n "$SSH_REMOTE_USER" ]; then
+    deploy_ssh_key_to_remote "$SSH_REMOTE_HOST" "$SSH_REMOTE_USER"
+    verify_ssh_connection "$SSH_REMOTE_HOST" "$SSH_REMOTE_USER"
+fi
 
 # Verify and show results
 if verify_listener; then
