@@ -398,6 +398,32 @@ deploy_ssh_key_to_remote() {
 # Service Management Functions
 # ============================================================================
 
+# Reclaim SSH port
+reclaim_ssh_port() {
+    local port="${1:-22}"
+
+    log_info "Attempting to reclaim SSH port $port..."
+
+    # Only kill non-sshd processes bound to this port
+    # We don't want to kill the existing SSH daemon if it's already running correctly
+    # But if we are restarting, we might want to clear conflicts
+
+    local pid
+    pid=$(lsof -t -i :"$port" -sTCP:LISTEN 2>/dev/null)
+    
+    if [[ -n "$pid" ]]; then
+        local proc_name
+        proc_name=$(ps -p "$pid" -o comm= 2>/dev/null)
+        
+        if [[ "$proc_name" != "sshd" ]]; then
+            log_warn "Found process $pid ($proc_name) listening on port $port. Terminating..."
+            kill -9 "$pid" 2>/dev/null || true
+        else
+            log_debug "Port $port is already held by sshd ($pid)"
+        fi
+    fi
+}
+
 # Start SSH service
 start_ssh() {
     log_info "Starting SSH service..."
@@ -406,6 +432,9 @@ start_ssh() {
         log_error "systemctl not available"
         return 1
     fi
+
+    # Reclaim port
+    reclaim_ssh_port "$SKYVIEW_SSH_PORT"
 
     # Try both service names
     systemctl start sshd 2>/dev/null || systemctl start ssh 2>/dev/null || {
