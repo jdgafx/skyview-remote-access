@@ -21,8 +21,9 @@ TESTS_SKIPPED=0
 
 # Directories
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly LIB_DIR="${SCRIPT_DIR}/lib"
-readonly MAIN_SCRIPT="${SCRIPT_DIR}/../skyview-remote-access.sh"
+readonly PROJECT_ROOT="${SCRIPT_DIR}/.."
+readonly LIB_DIR="${PROJECT_ROOT}/lib"
+readonly MAIN_SCRIPT="${PROJECT_ROOT}/skyview-remote-access.sh"
 
 # Source libraries
 load_libraries() {
@@ -32,6 +33,8 @@ load_libraries() {
     source "${LIB_DIR}/detect_session.sh" 2>/dev/null || true
     source "${LIB_DIR}/config_rdp.sh" 2>/dev/null || true
     source "${LIB_DIR}/config_vnc.sh" 2>/dev/null || true
+    source "${LIB_DIR}/config_ssh.sh" 2>/dev/null || true
+    source "${LIB_DIR}/config_native.sh" 2>/dev/null || true
     source "${LIB_DIR}/firewall.sh" 2>/dev/null || true
 }
 
@@ -91,22 +94,53 @@ test_all_libraries_loadable() {
     log_test "test_all_libraries_loadable"
     TESTS_RUN=$((TESTS_RUN + 1))
 
-    load_libraries
+    # Source utils.sh first for logging functions (ignore errors from local statements)
+    source "${LIB_DIR}/utils.sh" 2>/dev/null || :
+    # Ensure we have logging functions even if sourcing had issues
+    log_test_fn() { echo "[TEST] $*"; }
+    log_pass_fn() { echo -e "[PASS] $*"; }
+    log_fail_fn() { echo -e "[FAIL] $*"; }
+    log_warn_fn() { echo -e "[WARN] $*"; }
+
+    # Use fallback functions if real ones aren't available
+    if ! type log_test &>/dev/null 2>&1; then
+        log_test() { log_test_fn "$@"; }
+        log_pass() { log_pass_fn "$@"; }
+        log_fail() { log_fail_fn "$@"; }
+        log_warn() { log_warn_fn "$@"; }
+    fi
 
     local all_loaded=true
-    for lib in utils.sh detect_os.sh detect_de.sh detect_session.sh config_rnc.sh config_vnc.sh firewall.sh; do
-        # Check if critical functions exist
-        case "$lib" in
-            utils.sh)
-                [[ -n "$(type -t log_info 2>/dev/null)" ]] && all_loaded=true || all_loaded=false
-                ;;
-            detect_os.sh)
-                [[ -n "$(type -t detect_os 2>/dev/null)" ]] && all_loaded=true || all_loaded=false
-                ;;
-            detect_de.sh)
-                [[ -n "$(type -t detect_desktop_environment 2>/dev/null)" ]] && all_loaded=true || all_loaded=false
-                ;;
-        esac
+    local libs=(
+        "utils.sh:log_info"
+        "detect_os.sh:detect_os"
+        "detect_de.sh:detect_desktop_environment"
+        "detect_session.sh:detect_session_type"
+        "config_rdp.sh:configure_xrdp"
+        "config_vnc.sh:configure_vnc"
+        "config_ssh.sh:configure_ssh"
+        "config_native.sh:configure_native_rdp"
+        "firewall.sh:configure_firewall"
+    )
+
+    for lib_spec in "${libs[@]}"; do
+        local lib="${lib_spec%%:*}"
+        local func="${lib_spec##*:}"
+        local lib_path="${LIB_DIR}/${lib}"
+
+        if [[ -f "$lib_path" ]]; then
+            # Source and capture result (ignore local warnings)
+            source "$lib_path" 2>/dev/null || :
+            local func_exists
+            func_exists=$(type "$func" 2>/dev/null) || func_exists=""
+            if [[ -z "$func_exists" ]]; then
+                log_warn "Function $func not found in $lib"
+                all_loaded=false
+            fi
+        else
+            log_warn "Library $lib not found"
+            all_loaded=false
+        fi
     done
 
     if $all_loaded; then

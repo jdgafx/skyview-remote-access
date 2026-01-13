@@ -25,6 +25,45 @@
       "createdAt": "2026-01-13T10:37:31.203Z",
       "startedAt": null,
       "completedAt": null
+    },
+    "task-1768302580491-4yle4y": {
+      "taskId": "task-1768302580491-4yle4y",
+      "type": "implementation",
+      "description": "Research SSH implementation",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-01-13T11:09:40.492Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1768302594807-c1tus7": {
+      "taskId": "task-1768302594807-c1tus7",
+      "type": "research",
+      "description": "Map frontend interaction",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-01-13T11:09:54.807Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1768302607078-o3anx4": {
+      "taskId": "task-1768302607078-o3anx4",
+      "type": "research",
+      "description": "Protocol research",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-01-13T11:10:07.078Z",
+      "startedAt": null,
+      "completedAt": null
     }
   },
   "version": "3.0.0"
