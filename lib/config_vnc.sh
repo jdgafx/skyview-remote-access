@@ -322,7 +322,36 @@ EOF
 # Service Management Functions
 # ============================================================================
 
-# Start VNC server
+reclaim_vnc_port() {
+    local display_num="${1:-0}"
+    local port=$((5900 + display_num))
+    
+    log_info "Attempting to reclaim VNC port $port (Display :$display_num)..."
+    
+    local pid
+    pid=$(lsof -t -i :"$port" 2>/dev/null)
+    if [[ -n "$pid" ]]; then
+        log_warn "Found process $pid listening on port $port. Terminating..."
+        kill -9 "$pid" 2>/dev/null || sudo kill -9 "$pid" 2>/dev/null || true
+    fi
+    
+    vncserver -kill ":$display_num" 2>/dev/null || true
+    
+    local locks=(
+        "/tmp/.X${display_num}-lock"
+        "/tmp/.X11-unix/X${display_num}"
+    )
+    
+    for lock in "${locks[@]}"; do
+        if [[ -e "$lock" ]]; then
+            log_debug "Removing stale lock file: $lock"
+            rm -f "$lock" 2>/dev/null || sudo rm -f "$lock" 2>/dev/null || true
+        fi
+    done
+    
+    log_info "Port $port reclamation attempt complete."
+}
+
 start_vnc() {
     local display_num="${1:-0}"
 
@@ -333,13 +362,8 @@ start_vnc() {
         return 1
     fi
 
-    # Check if already running
-    if pgrep -f "vncserver :${display_num}" &>/dev/null; then
-        log_warn "VNC server already running on display :$display_num"
-        return 0
-    fi
+    reclaim_vnc_port "$display_num"
 
-    # Start VNC server
     vncserver ":${display_num}" -geometry "$SKYVIEW_VNC_GEOMETRY" -depth "$SKYVIEW_VNC_DEPTH" -localhost="$SKYVIEW_VNC_LOCALHOST_ONLY" 2>&1 | tee /tmp/vncstart.log
 
     # Check if started successfully
