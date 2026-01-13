@@ -318,9 +318,57 @@ EOF
 # Service Management Functions
 # ============================================================================
 
+# Reclaim native RDP port
+reclaim_native_rdp_port() {
+    local port="${1:-3389}"
+    local de="${SKYVIEW_DE:-unknown}"
+
+    log_info "Attempting to reclaim Native RDP port $port..."
+
+    # Check for processes on the port
+    local pid
+    pid=$(lsof -t -i :"$port" -sTCP:LISTEN 2>/dev/null)
+    
+    if [[ -n "$pid" ]]; then
+        local proc_name
+        proc_name=$(ps -p "$pid" -o comm= 2>/dev/null)
+        
+        # Determine if we should kill it based on DE context
+        local should_kill=false
+        
+        case "$de" in
+            KDE|KDE_Plasma|plasma)
+                # For KDE, we expect krfb
+                if [[ "$proc_name" != "krfb" ]]; then
+                    should_kill=true
+                fi
+                ;;
+            GNOME)
+                # For GNOME, we expect gnome-remote-de (truncated)
+                if [[ "$proc_name" != "gnome-remote-de" && "$proc_name" != "gnome-remote-desktop-daemon" ]]; then
+                    should_kill=true
+                fi
+                ;;
+            *)
+                should_kill=true
+                ;;
+        esac
+
+        if [[ "$should_kill" == "true" ]]; then
+            log_warn "Found conflicting process $pid ($proc_name) on port $port. Terminating..."
+            kill -9 "$pid" 2>/dev/null || true
+        else
+            log_debug "Port $port is held by expected process $pid ($proc_name)"
+        fi
+    fi
+}
+
 # Start native RDP service
 start_native_rdp() {
     log_info "Starting native RDP service for $SKYVIEW_DE..."
+
+    # Reclaim port first
+    reclaim_native_rdp_port "$SKYVIEW_NATIVE_RDP_PORT"
 
     case "$SKYVIEW_DE" in
         KDE|KDE_Plasma|plasma)
